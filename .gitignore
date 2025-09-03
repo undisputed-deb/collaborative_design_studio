@@ -5,3 +5,7 @@ node_modules
 .env*
 *.env
 !.env.example
+# Next.js build output
+.next/
+.next/**
+*.tsbuildinfo
