@@ -49,7 +49,7 @@ export default function SandboxWhiteboard() {
     return { x: e.clientX - rect.left + s.scrollLeft, y: e.clientY - rect.top + s.scrollTop };
   };
 
-  const hit = (s: Shape, p: Point) => {
+  const hit = (s: Shape, p: Point, radius = 6) => {
     if (s.type === 'rect' || s.type === 'ellipse' || s.type === 'image') {
       const r = s as RectShape | EllipseShape | ImageShape;
       return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
@@ -60,7 +60,7 @@ export default function SandboxWhiteboard() {
     if (s.type === 'pencil') {
       const pts = (s as PencilShape).points; for (let i=0;i<pts.length-1;i++){ const a=pts[i]; const b=pts[i+1];
         const l2=(a.x-b.x)**2+(a.y-b.y)**2; if(l2===0) continue; let t=((p.x-a.x)*(b.x-a.x)+(p.y-a.y)*(b.y-a.y))/l2; t=Math.max(0,Math.min(1,t));
-        const q={x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y)}; if (Math.hypot(p.x-q.x,p.y-q.y) < 6) return true; }
+        const q={x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y)}; if (Math.hypot(p.x-q.x,p.y-q.y) < radius) return true; }
     }
     return false;
   };
@@ -69,8 +69,8 @@ export default function SandboxWhiteboard() {
     // Let finger scroll; draw only with pen/mouse for a smoother mobile experience
     if (e.pointerType === 'touch') return;
 
-    // Restrict pencil to stylus-only (no finger or mouse)
-    if (tool === 'pencil' && e.pointerType !== 'pen') return;
+    // Remove stylus-only restriction so mouse can draw as well
+    // if (tool === 'pencil' && e.pointerType !== 'pen') return;
 
     const p = getRelative(e);
     if (tool === 'pencil') {
@@ -90,7 +90,7 @@ export default function SandboxWhiteboard() {
       fileInputRef.current?.click();
     } else if (tool === 'eraser') {
       isErasing.current = true;
-      setShapes(prev => prev.filter(s => !hit(s, p)));
+      setShapes(prev => prev.filter(s => !hit(s, p, 16)));
     } else {
       // select/move
       const found = [...shapes].reverse().find(s => hit(s, p)) || null;
@@ -103,11 +103,11 @@ export default function SandboxWhiteboard() {
   const onPointerMove = (e: React.PointerEvent) => {
     if (e.pointerType === 'touch') return; // allow natural scroll with finger
 
-    // Restrict pencil move updates to stylus only
-    if (tool === 'pencil' && e.pointerType !== 'pen') return;
+    // Remove stylus-only restriction so mouse can draw as well
+    // if (tool === 'pencil' && e.pointerType !== 'pen') return;
 
     const p = getRelative(e);
-    if (isErasing.current && tool === 'eraser') { setShapes(prev => prev.filter(s => !hit(s, p))); return; }
+    if (isErasing.current && tool === 'eraser') { setShapes(prev => prev.filter(s => !hit(s, p, 16))); return; }
     if (drawingId.current) {
       setShapes(prev => prev.map(s => {
         if (s.id !== drawingId.current) return s;
@@ -209,7 +209,25 @@ export default function SandboxWhiteboard() {
           >
             {shapes.map((s) => {
               if (s.type === 'pencil') {
-                const d = (s as PencilShape).points.map((pt,i)=>`${i===0?'M':'L'} ${pt.x} ${pt.y}`).join(' ');
+                const pts = (s as PencilShape).points;
+                const buildSmoothPath = (points: Point[]): string => {
+                  if (points.length === 0) return '';
+                  if (points.length === 1) return `M ${points[0].x} ${points[0].y} L ${points[0].x} ${points[0].y}`;
+                  if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+                  let d = `M ${points[0].x} ${points[0].y}`;
+                  for (let i = 1; i < points.length - 1; i++) {
+                    const c = points[i];
+                    const n = points[i + 1];
+                    const mx = (c.x + n.x) / 2;
+                    const my = (c.y + n.y) / 2;
+                    d += ` Q ${c.x} ${c.y} ${mx} ${my}`;
+                  }
+                  const pn1 = points[points.length - 2];
+                  const pn = points[points.length - 1];
+                  d += ` Q ${pn1.x} ${pn1.y} ${pn.x} ${pn.y}`;
+                  return d;
+                };
+                const d = buildSmoothPath(pts);
                 return <path key={s.id} d={d} stroke={s.color} strokeWidth={(s as PencilShape).strokeWidth} fill="none" strokeLinecap="round" strokeLinejoin="round" />
               }
               if (s.type === 'rect') { const r = s as RectShape; return <rect key={s.id} x={r.x} y={r.y} width={r.w} height={r.h} fill={`${s.color}33`} stroke={s.color} strokeWidth={1.5} />; }

@@ -329,7 +329,7 @@ export default function StudioCanvas({ projectId }: { projectId: string }) {
   };
 
   const eraseAt = (p: Point) => {
-    commit((prev) => prev.filter((s) => !hitTest(s, p, 10)));
+    commit((prev) => prev.filter((s) => !hitTest(s, p, 16)));
   };
 
   const flushBufferedPoints = () => {
@@ -356,16 +356,16 @@ export default function StudioCanvas({ projectId }: { projectId: string }) {
     // In Plumb mode, do not intercept any input; allow native scrolling with finger, mouse wheel, or trackpad
     if (tool === 'plumb') return;
 
-    // Allow finger to scroll the canvas natively; only draw/interact with pen or mouse
+    // Allow finger to scroll the canvas natively; only draw/interact with mouse or pen
     if (e.pointerType === 'touch') {
       isInteractingRef.current = false;
       return;
     }
 
-    // For Pencil tool, restrict to stylus only (no finger or mouse)
-    if (tool === 'pencil' && e.pointerType !== 'pen') {
-      return;
-    }
+    // Remove stylus-only restriction so mouse can draw as well
+    // if (tool === 'pencil' && e.pointerType !== 'pen') {
+    //   return;
+    // }
 
     e.preventDefault();
     try { (e.currentTarget as SVGSVGElement).setPointerCapture?.(e.pointerId); } catch { /* noop */ }
@@ -461,8 +461,8 @@ export default function StudioCanvas({ projectId }: { projectId: string }) {
 
     if (e.pointerType === 'touch') return; // let the page scroll naturally with a finger
 
-    // For Pencil tool, restrict to stylus input during move as well
-    if (tool === 'pencil' && e.pointerType !== 'pen') return;
+    // Remove stylus-only restriction so mouse can draw as well
+    // if (tool === 'pencil' && e.pointerType !== 'pen') return;
 
     const p = getRelative(e);
     if (commentMode) return; // no drawing in comment mode
@@ -908,7 +908,27 @@ export default function StudioCanvas({ projectId }: { projectId: string }) {
               {shapes.map((s) => {
                 const isSelected = selectedId === s.id;
                 if (s.type === 'pencil') {
-                  const d = (s as PencilShape).points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ');
+                  const pts = (s as PencilShape).points;
+                  // Build a smoother path using quadratic curves
+                  const buildSmoothPath = (points: Point[]): string => {
+                    if (points.length === 0) return '';
+                    if (points.length === 1) return `M ${points[0].x} ${points[0].y} L ${points[0].x} ${points[0].y}`;
+                    if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+                    let d = `M ${points[0].x} ${points[0].y}`;
+                    for (let i = 1; i < points.length - 1; i++) {
+                      const c = points[i];
+                      const n = points[i + 1];
+                      const mx = (c.x + n.x) / 2;
+                      const my = (c.y + n.y) / 2;
+                      d += ` Q ${c.x} ${c.y} ${mx} ${my}`;
+                    }
+                    // Finish at the last point
+                    const pn1 = points[points.length - 2];
+                    const pn = points[points.length - 1];
+                    d += ` Q ${pn1.x} ${pn1.y} ${pn.x} ${pn.y}`;
+                    return d;
+                  };
+                  const d = buildSmoothPath(pts);
                   return <path key={s.id} d={d} stroke={s.color} strokeWidth={(s as PencilShape).strokeWidth} fill="none" strokeLinecap="round" strokeLinejoin="round" />;
                 }
                 if (s.type === 'rect') {
