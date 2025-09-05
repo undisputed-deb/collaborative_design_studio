@@ -11,7 +11,7 @@
 [![Animated with Framer](https://img.shields.io/badge/Animated%20with-Framer%20Motion-0055FF?style=for-the-badge&logo=framer)](https://www.framer.com/motion/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-[🚀 Live Demo](https://modern-whiteboard-demo.vercel.app) • [📖 Documentation](https://docs.modern-whiteboard.dev) • [🐛 Report Bug](https://github.com/deb86011/modern-whiteboard/issues) • [💡 Request Feature](https://github.com/deb86011/modern-whiteboard/issues)
+[🚀 Live Demo](https://sketch-together.netlify.app/) • [📖 Documentation](https://docs.modern-whiteboard.dev) • [🐛 Report Bug](https://github.com/deb86011/modern-whiteboard/issues) • [💡 Request Feature](https://github.com/deb86011/modern-whiteboard/issues)
 
 </div>
 
